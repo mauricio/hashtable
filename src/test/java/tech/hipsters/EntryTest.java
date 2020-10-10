@@ -8,12 +8,12 @@ public class EntryTest {
 
     @Test(expected = IllegalArgumentException.class)
     public void testNewEntryNullKey() {
-        new Entry<String,Object>(null);
+        new Entry<String, Object>(null);
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void testNewEntryNullKeyAndValue() {
-        new Entry<String,Object>(null, "some value");
+        new Entry<String, Object>(null, "some value");
     }
 
     @Test

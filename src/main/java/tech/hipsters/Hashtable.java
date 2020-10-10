@@ -3,9 +3,12 @@ package tech.hipsters;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Hashtable<K,V> {
+public class Hashtable<K, V> {
 
-    private List<List<Entry<K,V>>> buckets;
+    private static final float loadFactor = 0.75F;
+
+    private List<List<Entry<K, V>>> buckets;
+    private int count;
 
     public Hashtable() {
         this(16);
@@ -13,27 +16,19 @@ public class Hashtable<K,V> {
 
     public Hashtable(int s) {
         this.buckets = new ArrayList<>(s);
-        for (int x = 0; x < s; x++) {
-            buckets.add(null);
-        }
+        fill(this.buckets, s);
     }
 
     public V put(K key, V value) {
         throwIfNull(key);
 
-        var bucket = this.findOrCreateBucket(key);
+        var entry = this.findOrCreateEntry(key);
+        var oldValue = entry.getValue();
+        entry.setValue(value);
 
-        for (var entry : bucket) {
-            if (key.equals(entry.getKey())) {
-                var oldValue = entry.getValue();
-                entry.setValue(value);
-                return oldValue;
-            }
-        }
+        this.rehashIfNeeded();
 
-        bucket.add(new Entry<>(key, value));
-
-        return null;
+        return oldValue;
     }
 
     public V get(K key) {
@@ -41,7 +36,7 @@ public class Hashtable<K,V> {
 
         var entry = this.findEntry(key);
 
-        if (entry != null){
+        if (entry != null) {
             return entry.getValue();
         }
 
@@ -54,13 +49,36 @@ public class Hashtable<K,V> {
         return this.findEntry(key) != null;
     }
 
-    private Entry<K,V> findEntry(K key) {
+    public V remove(K key) {
+        throwIfNull(key);
+
         var bucket = this.findBucket(key);
         if (bucket == null || bucket.isEmpty()) {
             return null;
         }
 
-        for ( var entry : bucket) {
+        for (var it = bucket.iterator(); it.hasNext();) {
+            var next = it.next();
+            if (key.equals(next.getKey())) {
+                it.remove();
+                this.count--;
+
+                this.rehashIfNeeded();
+
+                return next.getValue();
+            }
+        }
+
+        return null;
+    }
+
+    private Entry<K, V> findEntry(K key) {
+        var bucket = this.findBucket(key);
+        if (bucket == null || bucket.isEmpty()) {
+            return null;
+        }
+
+        for (var entry : bucket) {
             if (key.equals(entry.getKey())) {
                 return entry;
             }
@@ -69,28 +87,62 @@ public class Hashtable<K,V> {
         return null;
     }
 
-    private List<Entry<K,V>> findBucket(K key) {
+    private List<Entry<K, V>> findBucket(K key) {
         return this.buckets.get(this.bucketIndexFor(key));
     }
 
     private int bucketIndexFor(K key) {
-        return key.hashCode() / this.buckets.size();
+        return key.hashCode() % this.buckets.size();
     }
 
-    private List<Entry<K,V>> findOrCreateBucket(K key) {
+    private Entry<K, V> findOrCreateEntry(K key) {
         var bucketIndex = this.bucketIndexFor(key);
         var bucket = this.buckets.get(bucketIndex);
         if (bucket == null) {
             bucket = new ArrayList<>();
-            this.buckets.add(bucketIndex, bucket);
+            this.buckets.set(bucketIndex, bucket);
         }
 
-        return bucket;
+        for (var entry : bucket) {
+            if (key.equals(entry.getKey())) {
+                return entry;
+            }
+        }
+
+        var entry = new Entry<K,V>(key);
+        bucket.add(entry);
+        this.count++;
+
+        return entry;
+    }
+
+    private void rehashIfNeeded() {
+        if (this.count > 0 && ((this.buckets.size() / (float) this.count) < loadFactor)) {
+            var oldBuckets = this.buckets;
+            this.count = 0;
+            var capacity = oldBuckets.size() * 2;
+            this.buckets = new ArrayList<>(capacity);
+            fill(this.buckets, capacity);
+
+            for (var bucket : oldBuckets) {
+                if (bucket != null) {
+                    for (var entry : bucket) {
+                        this.put(entry.getKey(), entry.getValue());
+                    }
+                }
+            }
+        }
     }
 
     static void throwIfNull(Object key) {
         if (key == null) {
             throw new NullPointerException("key must not be null");
+        }
+    }
+
+    static <E> void fill(List<E> items, int count) {
+        for (int x = 0; x < count; x++) {
+            items.add(null);
         }
     }
 
