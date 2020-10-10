@@ -62,9 +62,6 @@ public class Hashtable<K, V> {
             if (key.equals(next.getKey())) {
                 it.remove();
                 this.count--;
-
-                this.rehashIfNeeded();
-
                 return next.getValue();
             }
         }
