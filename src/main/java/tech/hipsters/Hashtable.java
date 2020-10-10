@@ -5,7 +5,11 @@ import java.util.List;
 
 public class Hashtable<K,V> {
 
-    private ArrayList<List<Entry<K,V>>> buckets;
+    private List<List<Entry<K,V>>> buckets;
+
+    public Hashtable() {
+        this(16);
+    }
 
     public Hashtable(int s) {
         this.buckets = new ArrayList<>(s);
